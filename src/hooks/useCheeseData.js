@@ -5,7 +5,18 @@ const SETTINGS_KEY = 'cheese_tracker_settings';
 
 export const useCheeseData = () => {
     const [data, setData] = useState([]);
-    const [settings, setSettings] = useState({ apiKey: '', theme: 'cherry', hamsterBackground: '' });
+    const [settings, setSettings] = useState({ 
+        apiKey: '', 
+        theme: 'cherry', 
+        hamsterBackground: '',
+        hamsterName: '',
+        hamsterBirthday: '',
+        arrivalDate: '',
+        beddingType: '',
+        lastBeddingChange: '',
+        hamsterPhoto: '',
+        onboardingCompleted: false
+    });
 
     useEffect(() => {
         const storedData = localStorage.getItem(STORAGE_KEY);
