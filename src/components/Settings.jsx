@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Download, Upload, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Settings, Download, Upload, Trash2, AlertTriangle, X, Plus, Heart } from 'lucide-react';
 import { exportData, exportBackup, importData } from '../utils/dataIO';
 
-export default function SettingsPage({ settings, onUpdate, onImport, onClearAll, onClose, theme }) {
+export default function SettingsPage({ settings, hamsters = [], currentHamsterId, onUpdate, onImport, onImportBackup, onClearAll, onAddHamster, onDeleteHamster, onClose, theme }) {
     const [apiKey, setApiKey] = useState(settings.apiKey || '');
     const [hamsterBackground, setHamsterBackground] = useState(settings.hamsterBackground || '');
     const [showImportModal, setShowImportModal] = useState(false);
@@ -53,7 +53,19 @@ export default function SettingsPage({ settings, onUpdate, onImport, onClearAll,
             onImport, // Import data
             (settings) => {
                 // Import settings (including all welcome screen data)
+                // For multi-hamster support, this should create a new hamster
                 onUpdate(settings);
+            },
+            (backup) => {
+                // Handle backup import
+                if (onImportBackup) {
+                    if (onImportBackup(backup)) {
+                        // Reload to refresh all data
+                        setTimeout(() => window.location.reload(), 500);
+                        return true;
+                    }
+                }
+                return false;
             }
         );
         if (result.success) {
@@ -125,6 +137,56 @@ export default function SettingsPage({ settings, onUpdate, onImport, onClearAll,
                     placeholder="例如：他是「天然穀物派」，不吃壓縮飼料。他超愛小米和玉米（但這會導致挑食）。他對光線敏感（開燈就不跑輪）。他有囤糧在頰囊的習慣（會影響體重）。"
                 />
             </div>
+
+            {/* Hamster Management */}
+            {hamsters.length > 0 && (
+                <div className={`pt-4 border-t ${divider}`}>
+                    <h4 className={`text-sm font-semibold ${subHeaderText} mb-3`}>倉鼠管理</h4>
+                    <div className="space-y-2 mb-4">
+                        {hamsters.map(hamster => (
+                            <div key={hamster.id} className={`flex items-center justify-between p-3 rounded-lg border ${cardBorder} ${hamster.id === currentHamsterId ? accentSoftBg : cardBg}`}>
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    {hamster.photo ? (
+                                        <img 
+                                            src={hamster.photo} 
+                                            alt={hamster.name}
+                                            className="w-10 h-10 object-cover rounded-full border-2 border-pink-200 flex-shrink-0"
+                                        />
+                                    ) : (
+                                        <div className={`w-10 h-10 rounded-full ${accentSoftBg} flex items-center justify-center flex-shrink-0`}>
+                                            <Heart size={20} className={labelText} />
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-semibold truncate">{hamster.name}</div>
+                                        {hamster.id === currentHamsterId && (
+                                            <div className="text-xs text-gray-500">目前選擇</div>
+                                        )}
+                                    </div>
+                                </div>
+                                {hamsters.length > 1 && (
+                                    <button
+                                        onClick={() => {
+                                            if (confirm(`確定要刪除「${hamster.name}」嗎？此操作無法復原。`)) {
+                                                onDeleteHamster(hamster.id);
+                                            }
+                                        }}
+                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <button
+                        onClick={onAddHamster}
+                        className={`w-full flex items-center justify-center gap-2 ${infoButtonBg} ${infoButtonText} ${infoButtonHover} font-semibold py-2 rounded-lg border ${infoButtonBorder}`}
+                    >
+                        <Plus size={18} /> 新增倉鼠
+                    </button>
+                </div>
+            )}
 
             {/* Data Management */}
             <div className={`pt-4 border-t ${divider}`}>

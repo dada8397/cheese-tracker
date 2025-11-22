@@ -1,8 +1,19 @@
-import { useState, useRef } from 'react';
-import { Heart, Calendar, Home, Layers, CheckCircle, Camera, Image, Upload, AlertTriangle, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Heart, Calendar, Home, Layers, CheckCircle, Camera, Image, Upload, AlertTriangle, X, Plus } from 'lucide-react';
 import { importData, extractFormDataFromSettings } from '../utils/dataIO';
 
-export default function Welcome({ onComplete, theme, onImportData, onImportSettings }) {
+export default function Welcome({ onComplete, theme, onImportData, onImportBackup, onImportSettings, onImportBackupComplete, hamsters = [], onSelectHamster, currentHamsterId, isNewHamster = false, onCancel }) {
+    const [mode, setMode] = useState(hamsters.length > 0 && !isNewHamster ? 'select' : 'new'); // 'select' or 'new'
+    
+    // Reset mode when isNewHamster changes
+    useEffect(() => {
+        if (isNewHamster) {
+            setMode('new');
+            setStep(1); // Reset to first step when adding new hamster
+        } else if (hamsters.length > 0) {
+            setMode('select');
+        }
+    }, [isNewHamster, hamsters.length]);
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         hamsterName: '',
@@ -27,7 +38,8 @@ export default function Welcome({ onComplete, theme, onImportData, onImportSetti
         buttonBg = 'bg-pink-500',
         buttonHover = 'hover:bg-pink-600',
         buttonText = 'text-white',
-        subHeaderText = 'text-pink-700'
+        subHeaderText = 'text-pink-700',
+        accentSoftBg = 'bg-pink-50'
     } = theme || {};
 
     const handleNext = () => {
@@ -52,8 +64,30 @@ export default function Welcome({ onComplete, theme, onImportData, onImportSetti
 
         const result = await importData(
             file,
-            onImportData,
+            (data) => {
+                // Import old format data array - create default hamster if needed
+                if (onImportData) {
+                    const success = onImportData(data);
+                    // If no hamsters exist and this is first time (onboarding), create a default one
+                    if (success && hamsters.length === 0 && onImportSettings) {
+                        // Create a default hamster for the imported data
+                        // This will be the first hamster
+                        onImportSettings({
+                            hamsterName: '我的倉鼠',
+                            hamsterPhoto: '',
+                            hamsterBirthday: '',
+                            arrivalDate: '',
+                            beddingType: '',
+                            lastBeddingChange: '',
+                            hamsterBackground: ''
+                        });
+                    }
+                    return success;
+                }
+                return false;
+            },
             (settings) => {
+                // Import old format settings - create first hamster
                 // Fill form with imported settings
                 const formDataFromSettings = extractFormDataFromSettings(settings);
                 Object.keys(formDataFromSettings).forEach(key => {
@@ -62,16 +96,37 @@ export default function Welcome({ onComplete, theme, onImportData, onImportSetti
                     }
                 });
                 
-                // Import settings
+                // Import settings as first hamster
                 if (onImportSettings) {
                     onImportSettings(settings);
+                    return true;
                 }
+                return false;
+            },
+            (backup) => {
+                // Handle backup import
+                if (onImportBackup) {
+                    if (onImportBackup(backup)) {
+                        if (onImportBackupComplete) {
+                            onImportBackupComplete();
+                        }
+                        return true;
+                    }
+                }
+                return false;
             }
         );
 
         if (result.success) {
             alert(result.message || '資料匯入成功');
             setShowImportModal(false);
+            // If backup was imported, reload will happen in onImportBackupComplete
+            // If old format was imported and created first hamster, reload to show dashboard
+            if (result.type === 'data' || result.type === 'settings') {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+            }
         } else {
             alert(result.message || '匯入失敗');
         }
@@ -107,6 +162,10 @@ export default function Welcome({ onComplete, theme, onImportData, onImportSetti
     };
 
     const canProceed = () => {
+        if (mode === 'select' && step === 1) {
+            // In select mode, can proceed if a hamster is selected or new mode is chosen
+            return true;
+        }
         switch (step) {
             case 1:
                 return formData.hamsterName.trim() !== '';
@@ -129,6 +188,80 @@ export default function Welcome({ onComplete, theme, onImportData, onImportSetti
     const getStepContent = () => {
         const name = formData.hamsterName || '你的倉鼠';
         
+        // Show hamster selection if there are existing hamsters
+        if (mode === 'select' && step === 1) {
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-center mb-4">
+                        <Heart className={`${labelText}`} size={48} />
+                    </div>
+                    <h2 className={`text-2xl font-bold ${subHeaderText} text-center mb-2`}>
+                        選擇倉鼠
+                    </h2>
+                    <p className={`${cardText} text-center mb-6`}>
+                        選擇要追蹤的倉鼠，或新增一隻新的
+                    </p>
+                    <div className="space-y-2">
+                        {hamsters.map(hamster => (
+                            <button
+                                key={hamster.id}
+                                onClick={() => {
+                                    if (onSelectHamster) {
+                                        onSelectHamster(hamster.id);
+                                    }
+                                }}
+                                className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
+                                    hamster.id === currentHamsterId
+                                        ? `${buttonBg} ${buttonText} border-transparent`
+                                        : `${cardBg} ${cardText} ${inputBorder} hover:border-pink-300`
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    {hamster.photo ? (
+                                        <img 
+                                            src={hamster.photo} 
+                                            alt={hamster.name}
+                                            className="w-12 h-12 object-cover rounded-full border-2 border-pink-200"
+                                        />
+                                    ) : (
+                                        <div className={`w-12 h-12 rounded-full ${accentSoftBg} flex items-center justify-center`}>
+                                            <Heart size={24} className={labelText} />
+                                        </div>
+                                    )}
+                                    <div className="flex-1">
+                                        <div className="font-semibold">{hamster.name}</div>
+                                        {hamster.birthday && (
+                                            <div className="text-sm opacity-80">
+                                                {new Date(hamster.birthday).toLocaleDateString('zh-TW')}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setMode('new')}
+                            className={`w-full p-4 border-2 border-dashed ${inputBorder} rounded-lg text-left transition-all hover:border-pink-300 flex items-center gap-3`}
+                        >
+                            <div className={`w-12 h-12 rounded-full ${accentSoftBg} flex items-center justify-center`}>
+                                <Plus size={24} className={labelText} />
+                            </div>
+                            <div className="font-semibold">新增倉鼠</div>
+                        </button>
+                    </div>
+                    <div className="pt-2">
+                        <button
+                            onClick={() => setShowImportModal(true)}
+                            className={`w-full flex items-center justify-center gap-2 ${cardBg} ${cardText} border-2 ${inputBorder} font-medium py-2 rounded-lg hover:bg-gray-50 transition-colors`}
+                        >
+                            <Upload size={18} />
+                            匯入資料
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        
         switch (step) {
             case 1:
                 return (
@@ -137,10 +270,10 @@ export default function Welcome({ onComplete, theme, onImportData, onImportSetti
                             <Heart className={`${labelText}`} size={48} />
                         </div>
                         <h2 className={`text-2xl font-bold ${subHeaderText} text-center mb-2`}>
-                            歡迎使用倉鼠追蹤器！
+                            {isNewHamster ? '新增倉鼠' : '歡迎使用倉鼠追蹤器！'}
                         </h2>
                         <p className={`${cardText} text-center mb-6`}>
-                            讓我們先認識一下你的小夥伴吧！
+                            {isNewHamster ? '讓我們認識一下新朋友吧！' : '讓我們先認識一下你的小夥伴吧！'}
                         </p>
                         <div>
                             <label className={`block text-sm font-medium ${labelText} mb-2`}>
@@ -416,9 +549,10 @@ export default function Welcome({ onComplete, theme, onImportData, onImportSetti
     return (
         <div className="max-w-md mx-auto p-4">
             <div className={`${cardBg} ${cardText} p-6 rounded-xl shadow-lg border ${cardBorder} space-y-6`}>
-                {/* Progress Indicator */}
-                <div className="flex justify-between items-center mb-4">
-                    {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+                {/* Progress Indicator - Hide in select mode */}
+                {mode !== 'select' && (
+                    <div className="flex justify-between items-center mb-4">
+                        {[1, 2, 3, 4, 5, 6, 7].map((s) => (
                         <div key={s} className="flex-1 flex items-center">
                             <div
                                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
@@ -439,41 +573,51 @@ export default function Welcome({ onComplete, theme, onImportData, onImportSetti
                                 />
                             )}
                         </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Step Content */}
                 {getStepContent()}
 
                 {/* Navigation Buttons */}
-                <div className="flex gap-3 pt-4">
-                    {step > 1 && (
-                        <button
-                            onClick={handleBack}
-                            className={`flex-1 ${cardBg} ${cardText} border-2 ${inputBorder} font-semibold py-3 rounded-lg hover:bg-gray-50`}
-                        >
-                            上一步
-                        </button>
-                    )}
-                    {step < 7 ? (
-                        <button
-                            onClick={handleNext}
-                            disabled={!canProceed()}
-                            className={`flex-1 ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-3 rounded-lg transition-all ${
-                                !canProceed() ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                        >
-                            下一步
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleComplete}
-                            className={`flex-1 ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-3 rounded-lg`}
-                        >
-                            完成設定
-                        </button>
-                    )}
-                </div>
+                {mode !== 'select' || step > 1 ? (
+                    <div className="flex gap-3 pt-4">
+                        {isNewHamster && step === 1 && onCancel ? (
+                            <button
+                                onClick={onCancel}
+                                className={`flex-1 ${cardBg} ${cardText} border-2 ${inputBorder} font-semibold py-3 rounded-lg hover:bg-gray-50 transition-all`}
+                            >
+                                取消
+                            </button>
+                        ) : step > 1 && (
+                            <button
+                                onClick={handleBack}
+                                className={`flex-1 ${cardBg} ${cardText} border-2 ${inputBorder} font-semibold py-3 rounded-lg hover:bg-gray-50 transition-all`}
+                            >
+                                上一步
+                            </button>
+                        )}
+                        {step < 7 ? (
+                            <button
+                                onClick={handleNext}
+                                disabled={!canProceed()}
+                                className={`flex-1 ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-3 rounded-lg transition-all ${
+                                    !canProceed() ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                            >
+                                下一步
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleComplete}
+                                className={`flex-1 ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-3 rounded-lg`}
+                            >
+                                {isNewHamster ? '完成新增' : '完成設定'}
+                            </button>
+                        )}
+                    </div>
+                ) : null}
             </div>
 
             {/* Import Data Modal */}

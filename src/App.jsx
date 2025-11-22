@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Plus } from 'lucide-react';
+import { Settings as SettingsIcon } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import EntryForm from './components/EntryForm';
 import HistoryFeed from './components/HistoryFeed';
@@ -11,36 +11,49 @@ import { useCheeseData } from './hooks/useCheeseData';
 import { themes } from './utils/themes';
 
 function App() {
-  const { data, addEntry, settings, updateSettings, importData, updateTodayEntry, clearAllData } = useCheeseData();
-  const [view, setView] = useState('dashboard'); // dashboard, entry, settings
+  const { 
+    data, 
+    allData,
+    hamsters, 
+    currentHamster, 
+    currentHamsterId,
+    addEntry, 
+    settings, 
+    updateSettings, 
+    importData,
+    importBackup, 
+    updateTodayEntry, 
+    clearAllData,
+    addHamster,
+    updateHamster,
+    setCurrentHamster,
+    deleteHamster
+  } = useCheeseData();
+  const [view, setView] = useState('dashboard'); // dashboard, entry, settings, hamster-selector
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [isNewHamster, setIsNewHamster] = useState(false);
 
   const theme = themes[settings.theme] || themes.cherry;
   
-  // Check URL parameter for testing
-  const urlParams = new URLSearchParams(window.location.search);
-  const forceFirstTime = urlParams.get('first') === 'true';
-  
   // Check if onboarding is needed
   // Show welcome screen only if:
-  // 1. onboardingCompleted is not true AND
-  // 2. no existing data AND
-  // 3. no hamster name in settings (for backward compatibility)
-  // OR if ?first=true is in URL (for testing)
-  const hasExistingData = data && data.length > 0;
-  const hasHamsterInfo = settings.hamsterName && settings.hamsterName.trim() !== '';
-  const needsOnboarding = forceFirstTime || (!settings.onboardingCompleted && !hasExistingData && !hasHamsterInfo);
+  // 1. No hamsters exist (first time use)
+  // OR if showWelcome is true (adding new hamster)
+  const needsOnboarding = hamsters.length === 0 || showWelcome;
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.baseText} font-sans pb-20`}>
       {/* Header - Hide during onboarding */}
       {!needsOnboarding && (
         <header className={`${theme.header} sticky top-0 z-10 border-b ${theme.headerBorder} px-4 py-3 flex justify-between items-center shadow-sm`}>
-          <h1 className={`text-xl font-black tracking-tight ${theme.headerText} flex items-center gap-2`}>
-            🐹 倉鼠追蹤器
-          </h1>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <h1 className={`text-xl font-black tracking-tight ${theme.headerText} flex items-center gap-2`}>
+              🐹 倉鼠追蹤器
+            </h1>
+          </div>
           <button
             onClick={() => setView('settings')}
-            className={`p-2 ${theme.headerButton} rounded-full`}
+            className={`p-2 ${theme.headerButton} rounded-full flex-shrink-0`}
           >
             <SettingsIcon size={20} />
           </button>
@@ -52,31 +65,56 @@ function App() {
         {needsOnboarding ? (
           <Welcome
             theme={theme}
+            hamsters={hamsters}
+            currentHamsterId={currentHamsterId}
+            isNewHamster={isNewHamster}
             onComplete={(welcomeData) => {
-              updateSettings({
-                ...welcomeData,
-                onboardingCompleted: true
-              });
-              
-              // Remove ?first=true from URL if present
-              if (forceFirstTime) {
-                const newUrl = window.location.pathname;
-                window.history.replaceState({}, '', newUrl);
+              addHamster(welcomeData);
+              setShowWelcome(false);
+              setIsNewHamster(false);
+            }}
+            onSelectHamster={(hamsterId) => {
+              setCurrentHamster(hamsterId);
+              setShowWelcome(false);
+            }}
+            onCancel={() => {
+              if (isNewHamster) {
+                setShowWelcome(false);
+                setIsNewHamster(false);
               }
             }}
             onImportData={importData}
+            onImportBackup={importBackup}
             onImportSettings={(settingsData) => {
-              updateSettings({
-                ...settingsData,
-                onboardingCompleted: false // Keep onboarding incomplete so user can review/complete
-              });
+              // Import as new hamster
+              addHamster(settingsData);
+              setShowWelcome(false);
+              setIsNewHamster(false);
+            }}
+            onImportBackupComplete={() => {
+              // Reload page to refresh data after backup import
+              window.location.reload();
             }}
           />
         ) : (
           <>
             {view === 'dashboard' && (
               <>
-                <Dashboard data={data} theme={theme} settings={settings} onAddClick={() => setView('entry')} onUpdateSettings={updateSettings} />
+                <Dashboard 
+                  data={data} 
+                  theme={theme} 
+                  settings={settings} 
+                  onAddClick={() => setView('entry')} 
+                  onUpdateSettings={updateSettings}
+                  hamsters={hamsters}
+                  currentHamsterId={currentHamsterId}
+                  onSelectHamster={setCurrentHamster}
+                  onAddHamster={() => {
+                    setIsNewHamster(true);
+                    setShowWelcome(true);
+                  }}
+                  onEditHamster={updateHamster}
+                />
                 <QuickUpdate theme={theme} onUpdate={updateTodayEntry} />
                 <AIAnalysis data={data} apiKey={settings.apiKey} theme={theme} hamsterBackground={settings.hamsterBackground} />
                 <HistoryFeed data={data} theme={theme} />
@@ -97,9 +135,17 @@ function App() {
             {view === 'settings' && (
               <SettingsPage
                 settings={settings}
+                hamsters={hamsters}
+                currentHamsterId={currentHamsterId}
                 onUpdate={updateSettings}
                 onImport={importData}
+                onImportBackup={importBackup}
                 onClearAll={clearAllData}
+                onAddHamster={() => {
+                  setIsNewHamster(true);
+                  setShowWelcome(true);
+                }}
+                onDeleteHamster={deleteHamster}
                 theme={theme}
                 onClose={() => setView('dashboard')}
               />

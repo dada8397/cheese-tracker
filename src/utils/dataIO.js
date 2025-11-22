@@ -1,19 +1,43 @@
 const STORAGE_KEY = 'cheese_tracker_data';
 const SETTINGS_KEY = 'cheese_tracker_settings';
+const HAMSTERS_KEY = 'cheese_tracker_hamsters';
+const CURRENT_HAMSTER_KEY = 'cheese_tracker_current_hamster';
 
 /**
- * Export tracking data to JSON file
+ * Export tracking data to JSON file (for current hamster or all hamsters)
  * @param {string} filename - Optional filename (default: 'hamster_data.json')
+ * @param {string} hamsterId - Optional hamster ID to export data for specific hamster
  */
-export const exportData = (filename = 'hamster_data.json') => {
+export const exportData = (filename = 'hamster_data.json', hamsterId = null) => {
     try {
-        const data = localStorage.getItem(STORAGE_KEY);
-        if (!data) {
+        const hamsters = localStorage.getItem(HAMSTERS_KEY);
+        if (!hamsters) {
             alert('沒有資料可以匯出');
             return false;
         }
 
-        const blob = new Blob([data], { type: 'application/json' });
+        const parsedHamsters = JSON.parse(hamsters);
+        let dataToExport = [];
+        
+        if (hamsterId) {
+            // Export data for specific hamster
+            const hamster = parsedHamsters.find(h => h.id === hamsterId);
+            if (hamster && hamster.data) {
+                dataToExport = hamster.data;
+            }
+        } else {
+            // Export all data from all hamsters (with hamsterId for backward compatibility)
+            dataToExport = parsedHamsters.flatMap(h => 
+                (h.data || []).map(entry => ({ ...entry, hamsterId: h.id }))
+            );
+        }
+
+        if (dataToExport.length === 0) {
+            alert('沒有資料可以匯出');
+            return false;
+        }
+
+        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -56,24 +80,26 @@ export const exportSettings = (filename = 'hamster_settings.json') => {
 };
 
 /**
- * Export complete backup (data + settings) to JSON file
+ * Export complete backup (hamsters with data + settings) to JSON file
  * @param {string} filename - Optional filename (default: 'hamster_backup.json')
  */
 export const exportBackup = (filename = 'hamster_backup.json') => {
     try {
-        const data = localStorage.getItem(STORAGE_KEY);
         const settings = localStorage.getItem(SETTINGS_KEY);
+        const hamsters = localStorage.getItem(HAMSTERS_KEY);
+        const currentHamsterId = localStorage.getItem(CURRENT_HAMSTER_KEY);
         
-        if (!data && !settings) {
+        if (!hamsters) {
             alert('沒有資料可以匯出');
             return false;
         }
 
         const backup = {
-            version: '1.0',
+            version: '3.0', // New format: data is inside each hamster
             exportDate: new Date().toISOString(),
-            data: data ? JSON.parse(data) : [],
-            settings: settings ? JSON.parse(settings) : {}
+            settings: settings ? JSON.parse(settings) : {},
+            hamsters: hamsters ? JSON.parse(hamsters) : [],
+            currentHamsterId: currentHamsterId || null
         };
 
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -97,9 +123,13 @@ export const exportBackup = (filename = 'hamster_backup.json') => {
  * @returns {'data'|'settings'|'backup'|'unknown'} - Type of data
  */
 export const detectDataType = (json) => {
-    // Check if it's a complete backup (contains both data and settings)
+    // Check if it's a complete backup (contains hamsters and/or settings)
     if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
-        if (json.data !== undefined && json.settings !== undefined) {
+        // New format (v3.0): has hamsters array (data is inside each hamster)
+        // Old format (v2.0): has data array and/or hamsters array
+        if (json.hamsters !== undefined || 
+            (json.data !== undefined && json.settings !== undefined) ||
+            (json.version !== undefined && (json.hamsters !== undefined || json.data !== undefined))) {
             return 'backup';
         }
         
@@ -134,13 +164,26 @@ export const parseImportedData = (json) => {
             if (typeof json !== 'object' || json === null) {
                 return { type: 'unknown', data: null, valid: false, error: '備份格式錯誤：必須是物件' };
             }
-            if (!Array.isArray(json.data)) {
+            // Data is optional (can be empty array)
+            if (json.data !== undefined && !Array.isArray(json.data)) {
                 return { type: 'unknown', data: null, valid: false, error: '備份格式錯誤：data 必須是陣列' };
             }
-            if (typeof json.settings !== 'object' || json.settings === null) {
+            // Settings is optional
+            if (json.settings !== undefined && (typeof json.settings !== 'object' || json.settings === null)) {
                 return { type: 'unknown', data: null, valid: false, error: '備份格式錯誤：settings 必須是物件' };
             }
-            return { type: 'backup', data: json.data, settings: json.settings, valid: true };
+            // Hamsters is optional
+            if (json.hamsters !== undefined && !Array.isArray(json.hamsters)) {
+                return { type: 'unknown', data: null, valid: false, error: '備份格式錯誤：hamsters 必須是陣列' };
+            }
+            return { 
+                type: 'backup', 
+                data: json.data || [], 
+                settings: json.settings || {}, 
+                hamsters: json.hamsters || [],
+                currentHamsterId: json.currentHamsterId || null,
+                valid: true 
+            };
         }
         
         if (type === 'data') {
@@ -157,6 +200,13 @@ export const parseImportedData = (json) => {
                 return { type: 'unknown', data: null, valid: false, error: '設定格式錯誤：必須是物件' };
             }
             return { type: 'settings', data: json, valid: true };
+        }
+        
+        // Check if it's a backup with hamsters array
+        if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
+            if (json.hamsters && Array.isArray(json.hamsters)) {
+                return { type: 'backup', data: json.data || [], settings: json.settings || {}, hamsters: json.hamsters, currentHamsterId: json.currentHamsterId, valid: true };
+            }
         }
         
         return { type: 'unknown', data: null, valid: false, error: '無法識別的檔案格式' };
@@ -207,9 +257,10 @@ export const readJsonFile = (file) => {
  * @param {File} file - File to import
  * @param {Function} onImportData - Callback for data array import
  * @param {Function} onImportSettings - Callback for settings import
+ * @param {Function} onImportBackup - Callback for complete backup import
  * @returns {Promise<{success: boolean, type?: string, message?: string}>}
  */
-export const importData = async (file, onImportData, onImportSettings) => {
+export const importData = async (file, onImportData, onImportSettings, onImportBackup) => {
     const readResult = await readJsonFile(file);
     
     if (!readResult.success) {
@@ -222,53 +273,77 @@ export const importData = async (file, onImportData, onImportSettings) => {
         return { success: false, message: parseResult.error };
     }
 
-    // Handle complete backup (data + settings)
+    // Handle complete backup (data + settings + hamsters)
     if (parseResult.type === 'backup') {
-        let dataSuccess = false;
-        let settingsSuccess = false;
-        
-        // Import data
-        if (parseResult.data && parseResult.data.length > 0) {
-            if (onImportData && onImportData(parseResult.data)) {
-                dataSuccess = true;
-            }
-        } else {
-            dataSuccess = true; // No data to import is also success
-        }
-        
-        // Import settings
-        if (parseResult.settings) {
-            if (onImportSettings) {
-                onImportSettings(parseResult.settings);
-                settingsSuccess = true;
+        if (onImportBackup) {
+            const backupData = {
+                data: parseResult.data || [],
+                settings: parseResult.settings || {},
+                hamsters: parseResult.hamsters || [],
+                currentHamsterId: parseResult.currentHamsterId || null
+            };
+            if (onImportBackup(backupData)) {
+                return { success: true, type: 'backup', message: '資料匯入成功' };
             } else {
-                return { success: false, message: '匯入失敗：缺少設定處理函數' };
+                return { success: false, message: '匯入失敗：備份處理錯誤' };
             }
         } else {
-            settingsSuccess = true; // No settings to import is also success
-        }
-        
-        if (dataSuccess && settingsSuccess) {
-            return { success: true, type: 'backup', message: '資料匯入成功' };
-        } else {
-            return { success: false, message: '匯入失敗：部分資料匯入失敗' };
+            // Fallback to old method if no backup handler
+            let dataSuccess = false;
+            let settingsSuccess = false;
+            
+            // Import data
+            if (parseResult.data && parseResult.data.length > 0) {
+                if (onImportData && onImportData(parseResult.data)) {
+                    dataSuccess = true;
+                }
+            } else {
+                dataSuccess = true; // No data to import is also success
+            }
+            
+            // Import settings
+            if (parseResult.settings) {
+                if (onImportSettings) {
+                    onImportSettings(parseResult.settings);
+                    settingsSuccess = true;
+                } else {
+                    return { success: false, message: '匯入失敗：缺少設定處理函數' };
+                }
+            } else {
+                settingsSuccess = true; // No settings to import is also success
+            }
+            
+            if (dataSuccess && settingsSuccess) {
+                return { success: true, type: 'backup', message: '資料匯入成功' };
+            } else {
+                return { success: false, message: '匯入失敗：部分資料匯入失敗' };
+            }
         }
     }
 
     // Handle data only
     if (parseResult.type === 'data') {
-        if (onImportData && onImportData(parseResult.data)) {
-            return { success: true, type: 'data', message: '資料匯入成功' };
+        if (onImportData) {
+            const success = onImportData(parseResult.data);
+            if (success) {
+                return { success: true, type: 'data', message: '資料匯入成功' };
+            } else {
+                return { success: false, message: '匯入失敗：格式錯誤' };
+            }
         } else {
-            return { success: false, message: '匯入失敗：格式錯誤' };
+            return { success: false, message: '匯入失敗：缺少資料處理函數' };
         }
     }
 
     // Handle settings only
     if (parseResult.type === 'settings') {
         if (onImportSettings) {
-            onImportSettings(parseResult.data);
-            return { success: true, type: 'settings', message: '資料匯入成功' };
+            const success = onImportSettings(parseResult.data);
+            if (success) {
+                return { success: true, type: 'settings', message: '資料匯入成功' };
+            } else {
+                return { success: false, message: '匯入失敗：設定處理錯誤' };
+            }
         } else {
             return { success: false, message: '匯入失敗：缺少設定處理函數' };
         }
