@@ -60,6 +60,24 @@ export const useCheeseData = () => {
         localStorage.removeItem(STORAGE_KEY);
     };
 
+    const clearAllData = () => {
+        setData([]);
+        setSettings({ 
+            apiKey: '', 
+            theme: 'cherry', 
+            hamsterBackground: '',
+            hamsterName: '',
+            hamsterBirthday: '',
+            arrivalDate: '',
+            beddingType: '',
+            lastBeddingChange: '',
+            hamsterPhoto: '',
+            onboardingCompleted: false
+        });
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(SETTINGS_KEY);
+    };
+
     const importData = (newData) => {
         // Basic validation
         if (Array.isArray(newData)) {
@@ -97,5 +115,5 @@ export const useCheeseData = () => {
         return true;
     };
 
-    return { data, addEntry, settings, updateSettings, clearData, importData, updateTodayEntry };
+    return { data, addEntry, settings, updateSettings, clearData, clearAllData, importData, updateTodayEntry };
 };

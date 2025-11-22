@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
-import { Heart, Calendar, Home, Layers, CheckCircle, Camera, Image } from 'lucide-react';
+import { Heart, Calendar, Home, Layers, CheckCircle, Camera, Image, Upload, AlertTriangle, X } from 'lucide-react';
+import { importData, extractFormDataFromSettings } from '../utils/dataIO';
 
-export default function Welcome({ onComplete, theme }) {
+export default function Welcome({ onComplete, theme, onImportData, onImportSettings }) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         hamsterName: '',
@@ -11,7 +12,9 @@ export default function Welcome({ onComplete, theme }) {
         beddingType: '',
         lastBeddingChange: ''
     });
+    const [showImportModal, setShowImportModal] = useState(false);
     const fileInputRef = useRef(null);
+    const importFileInputRef = useRef(null);
 
     const {
         cardBg = 'bg-white',
@@ -41,6 +44,39 @@ export default function Welcome({ onComplete, theme }) {
 
     const handleComplete = () => {
         onComplete(formData);
+    };
+
+    const handleImportData = async (e) => {
+        const file = e?.target?.files?.[0];
+        if (!file) return;
+
+        const result = await importData(
+            file,
+            onImportData,
+            (settings) => {
+                // Fill form with imported settings
+                const formDataFromSettings = extractFormDataFromSettings(settings);
+                Object.keys(formDataFromSettings).forEach(key => {
+                    if (formDataFromSettings[key]) {
+                        updateFormData(key, formDataFromSettings[key]);
+                    }
+                });
+                
+                // Import settings
+                if (onImportSettings) {
+                    onImportSettings(settings);
+                }
+            }
+        );
+
+        if (result.success) {
+            alert(result.message || '資料匯入成功');
+            setShowImportModal(false);
+        } else {
+            alert(result.message || '匯入失敗');
+        }
+        
+        e.target.value = '';
     };
 
     const updateFormData = (field, value) => {
@@ -118,6 +154,15 @@ export default function Welcome({ onComplete, theme }) {
                                 placeholder="輸入名字..."
                                 autoFocus
                             />
+                        </div>
+                        <div className="pt-2">
+                            <button
+                                onClick={() => setShowImportModal(true)}
+                                className={`w-full flex items-center justify-center gap-2 ${cardBg} ${cardText} border-2 ${inputBorder} font-medium py-2 rounded-lg hover:bg-gray-50 transition-colors`}
+                            >
+                                <Upload size={18} />
+                                匯入資料
+                            </button>
                         </div>
                     </div>
                 );
@@ -430,6 +475,54 @@ export default function Welcome({ onComplete, theme }) {
                     )}
                 </div>
             </div>
+
+            {/* Import Data Modal */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setShowImportModal(false)}>
+                    <div className={`${cardBg} rounded-xl shadow-xl max-w-md w-full p-6`} onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className={`text-lg font-bold ${subHeaderText} flex items-center gap-2`}>
+                                <Upload className={labelText} size={20} />
+                                匯入資料
+                            </h3>
+                            <button
+                                onClick={() => setShowImportModal(false)}
+                                className={`p-2 ${cardText} hover:bg-gray-100 rounded-full transition-colors`}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className={`mb-4 p-4 rounded-lg bg-blue-50 border border-blue-200`}>
+                            <p className="text-blue-600 text-sm mb-2">
+                                您可以匯入之前匯出的資料或設定檔案
+                            </p>
+                            <ul className="text-blue-600 text-xs ml-4 list-disc space-y-1">
+                                <li>支援匯入追蹤記錄（JSON 陣列格式）</li>
+                                <li>支援匯入設定檔（包含倉鼠資訊）</li>
+                                <li>匯入設定檔會自動填入表單</li>
+                            </ul>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowImportModal(false)}
+                                className={`flex-1 ${cardBg} ${cardText} border-2 ${inputBorder} font-semibold py-2 rounded-lg hover:bg-gray-50`}
+                            >
+                                取消
+                            </button>
+                            <label className={`flex-1 ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-2 rounded-lg cursor-pointer text-center`}>
+                                選擇檔案
+                                <input
+                                    ref={importFileInputRef}
+                                    type="file"
+                                    accept=".json"
+                                    className="hidden"
+                                    onChange={handleImportData}
+                                />
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

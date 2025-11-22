@@ -11,7 +11,7 @@ import { useCheeseData } from './hooks/useCheeseData';
 import { themes } from './utils/themes';
 
 function App() {
-  const { data, addEntry, settings, updateSettings, importData, updateTodayEntry } = useCheeseData();
+  const { data, addEntry, settings, updateSettings, importData, updateTodayEntry, clearAllData } = useCheeseData();
   const [view, setView] = useState('dashboard'); // dashboard, entry, settings
 
   const theme = themes[settings.theme] || themes.cherry;
@@ -64,6 +64,13 @@ function App() {
                 window.history.replaceState({}, '', newUrl);
               }
             }}
+            onImportData={importData}
+            onImportSettings={(settingsData) => {
+              updateSettings({
+                ...settingsData,
+                onboardingCompleted: false // Keep onboarding incomplete so user can review/complete
+              });
+            }}
           />
         ) : (
           <>
@@ -92,6 +99,7 @@ function App() {
                 settings={settings}
                 onUpdate={updateSettings}
                 onImport={importData}
+                onClearAll={clearAllData}
                 theme={theme}
                 onClose={() => setView('dashboard')}
               />

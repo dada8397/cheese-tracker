@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Settings, Download, Upload } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Settings, Download, Upload, Trash2, AlertTriangle, X } from 'lucide-react';
+import { exportData, exportBackup, importData } from '../utils/dataIO';
 
-export default function SettingsPage({ settings, onUpdate, onImport, onClose, theme }) {
+export default function SettingsPage({ settings, onUpdate, onImport, onClearAll, onClose, theme }) {
     const [apiKey, setApiKey] = useState(settings.apiKey || '');
     const [hamsterBackground, setHamsterBackground] = useState(settings.hamsterBackground || '');
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [showClearModal, setShowClearModal] = useState(false);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         setApiKey(settings.apiKey || '');
@@ -40,6 +44,29 @@ export default function SettingsPage({ settings, onUpdate, onImport, onClose, th
 
     const handleSave = () => {
         onUpdate({ apiKey, hamsterBackground });
+        onClose();
+    };
+
+    const handleImportConfirm = async (file) => {
+        const result = await importData(
+            file, 
+            onImport, // Import data
+            (settings) => {
+                // Import settings (including all welcome screen data)
+                onUpdate(settings);
+            }
+        );
+        if (result.success) {
+            alert(result.message || '資料匯入成功');
+            setShowImportModal(false);
+        } else {
+            alert(result.message || '匯入失敗');
+        }
+    };
+
+    const handleClearConfirm = () => {
+        onClearAll();
+        setShowClearModal(false);
         onClose();
     };
 
@@ -104,46 +131,25 @@ export default function SettingsPage({ settings, onUpdate, onImport, onClose, th
                 <h4 className={`text-sm font-semibold ${subHeaderText} mb-3`}>資料管理</h4>
                 <div className="grid grid-cols-1 gap-3">
                     <button
-                        onClick={() => {
-                            const blob = new Blob([localStorage.getItem('cheese_tracker_data')], { type: 'application/json' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = 'hamster_data.json';
-                            a.click();
-                        }}
+                        onClick={() => exportBackup()}
                         className={`flex items-center justify-center gap-2 ${infoButtonBg} ${infoButtonText} ${infoButtonHover} font-semibold py-2 rounded-lg border ${infoButtonBorder}`}
                     >
                         <Download size={18} /> 匯出資料 (JSON)
                     </button>
 
-                    <label className={`flex items-center justify-center gap-2 ${neutralButtonBg} ${neutralButtonText} ${neutralButtonHover} font-semibold py-2 rounded-lg border ${neutralButtonBorder} cursor-pointer`}>
+                    <button
+                        onClick={() => setShowImportModal(true)}
+                        className={`flex items-center justify-center gap-2 ${neutralButtonBg} ${neutralButtonText} ${neutralButtonHover} font-semibold py-2 rounded-lg border ${neutralButtonBorder}`}
+                    >
                         <Upload size={18} /> 匯入資料 (JSON)
-                        <input
-                            type="file"
-                            accept=".json"
-                            className="hidden"
-                            onChange={(e) => {
-                                const file = e.target.files[0];
-                                if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (event) => {
-                                        try {
-                                            const json = JSON.parse(event.target.result);
-                                            if (onImport(json)) {
-                                                alert('匯入成功！');
-                                            } else {
-                                                alert('匯入失敗：格式錯誤');
-                                            }
-                                        } catch (err) {
-                                            alert('匯入失敗：JSON 解析錯誤');
-                                        }
-                                    };
-                                    reader.readAsText(file);
-                                }
-                            }}
-                        />
-                    </label>
+                    </button>
+
+                    <button
+                        onClick={() => setShowClearModal(true)}
+                        className={`w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 font-semibold py-2 rounded-lg border border-red-200 transition-all`}
+                    >
+                        <Trash2 size={18} /> 清空所有資料
+                    </button>
                 </div>
             </div>
 
@@ -161,6 +167,113 @@ export default function SettingsPage({ settings, onUpdate, onImport, onClose, th
                     取消
                 </button>
             </div>
+
+            {/* Import Data Modal */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setShowImportModal(false)}>
+                    <div className={`${cardBg} rounded-xl shadow-xl max-w-md w-full p-6`} onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className={`text-lg font-bold ${subHeaderText} flex items-center gap-2`}>
+                                <AlertTriangle className={accentSoftText} size={20} />
+                                匯入資料警告
+                            </h3>
+                            <button
+                                onClick={() => setShowImportModal(false)}
+                                className={`p-2 ${cardText} hover:bg-gray-100 rounded-full transition-colors`}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className={`mb-4 p-4 rounded-lg ${accentSoftBg} border ${accentSoftBorder}`}>
+                            <p className={`${accentSoftText} text-sm mb-2 font-medium`}>
+                                ⚠️ 警告：匯入資料將會覆蓋所有現有資料！
+                            </p>
+                            <p className={`${accentSoftText} text-xs`}>
+                                此操作將會：
+                            </p>
+                            <ul className={`${accentSoftText} text-xs mt-2 ml-4 list-disc space-y-1`}>
+                                <li>覆蓋所有現有的追蹤記錄</li>
+                                <li>覆蓋所有設定（包含倉鼠資訊、主題等）</li>
+                                <li>無法復原現有資料</li>
+                            </ul>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowImportModal(false)}
+                                className={`flex-1 ${neutralButtonBg} ${neutralButtonHover} ${neutralButtonText} font-semibold py-2 rounded-lg border ${neutralButtonBorder}`}
+                            >
+                                取消
+                            </button>
+                            <label className={`flex-1 ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-2 rounded-lg cursor-pointer text-center`}>
+                                確認匯入
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".json"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            await handleImportConfirm(file);
+                                            e.target.value = '';
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Clear All Data Modal */}
+            {showClearModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setShowClearModal(false)}>
+                    <div className={`${cardBg} rounded-xl shadow-xl max-w-md w-full p-6`} onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className={`text-lg font-bold text-red-600 flex items-center gap-2`}>
+                                <AlertTriangle className="text-red-600" size={20} />
+                                清空資料警告
+                            </h3>
+                            <button
+                                onClick={() => setShowClearModal(false)}
+                                className={`p-2 ${cardText} hover:bg-gray-100 rounded-full transition-colors`}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
+                            <p className="text-red-600 text-sm mb-2 font-medium">
+                                ⚠️ 警告：此操作將清除所有資料和設定！
+                            </p>
+                            <p className="text-red-600 text-xs mb-2">
+                                此操作將會清除：
+                            </p>
+                            <ul className="text-red-600 text-xs ml-4 list-disc space-y-1">
+                                <li>所有追蹤記錄</li>
+                                <li>倉鼠資訊（名字、生日、照片等）</li>
+                                <li>所有設定（主題、API 金鑰等）</li>
+                            </ul>
+                            <p className="text-red-600 text-xs mt-3 font-medium">
+                                此操作無法復原，並會回到首次使用狀態！
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowClearModal(false)}
+                                className={`flex-1 ${neutralButtonBg} ${neutralButtonHover} ${neutralButtonText} font-semibold py-2 rounded-lg border ${neutralButtonBorder}`}
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={handleClearConfirm}
+                                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-lg transition-all"
+                            >
+                                確認清空
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
