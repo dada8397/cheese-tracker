@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getTaipeiTimestamp, getTaipeiDateString } from '../utils/dateUtils';
 
 const SETTINGS_KEY = 'cheese_tracker_settings';
 const HAMSTERS_KEY = 'cheese_tracker_hamsters';
@@ -19,7 +20,7 @@ const migrateOldSettings = (oldSettings) => {
         lastBeddingChange: oldSettings.lastBeddingChange || '',
         hamsterBackground: oldSettings.hamsterBackground || '',
         data: [], // Initialize with empty data array
-        createdAt: new Date().toISOString()
+        createdAt: getTaipeiTimestamp()
     };
 };
 
@@ -165,7 +166,7 @@ export const useCheeseData = () => {
         
         const newEntry = {
             id: Date.now().toString(),
-            timestamp: new Date().toISOString(),
+            timestamp: getTaipeiTimestamp(),
             ...entry
         };
         
@@ -189,7 +190,7 @@ export const useCheeseData = () => {
             lastBeddingChange: hamsterData.lastBeddingChange || '',
             hamsterBackground: hamsterData.hamsterBackground || '',
             data: [], // Initialize with empty data array
-            createdAt: new Date().toISOString()
+            createdAt: getTaipeiTimestamp()
         };
         const updated = [...hamsters, newHamster];
         setHamsters(updated);

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Weight, Utensils, Gauge, PlusCircle, Heart, Calendar, Home, Layers, X, Edit2, Image as ImageIcon, ChevronDown, Plus } from 'lucide-react';
+import { formatDateTaipei, calculateDaysFromToday, getTaipeiDateString } from '../utils/dateUtils';
 
 export default function Dashboard({ data, onAddClick, theme, settings, onUpdateSettings, hamsters = [], currentHamsterId, onSelectHamster, onAddHamster, onEditHamster }) {
     const [showPhotoModal, setShowPhotoModal] = useState(false);
@@ -57,27 +58,10 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
     const beddingType = settings?.beddingType;
     const lastBeddingChange = settings?.lastBeddingChange;
 
-    // Calculate age in days
-    const calculateDays = (dateString) => {
-        if (!dateString) return null;
-        const date = new Date(dateString);
-        const today = new Date();
-        const diffTime = today - date;
-        return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    };
-
-    const ageInDays = hamsterBirthday ? calculateDays(hamsterBirthday) : null;
-    const daysAtHome = arrivalDate ? calculateDays(arrivalDate) : null;
-    const daysSinceBeddingChange = lastBeddingChange ? calculateDays(lastBeddingChange) : null;
-
-    const formatDate = (dateString) => {
-        if (!dateString) return null;
-        return new Date(dateString).toLocaleDateString('zh-TW', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
+    // Calculate age in days using +8 timezone
+    const ageInDays = hamsterBirthday ? calculateDaysFromToday(hamsterBirthday) : null;
+    const daysAtHome = arrivalDate ? calculateDaysFromToday(arrivalDate) : null;
+    const daysSinceBeddingChange = lastBeddingChange ? calculateDaysFromToday(lastBeddingChange) : null;
 
     const getAgeText = (days) => {
         if (days === null) return null;
@@ -205,7 +189,7 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                             <div className="flex items-center gap-2 text-sm">
                                 <Calendar size={16} className={`${labelText} opacity-70`} />
                                 <span className={`${cardText} opacity-70`}>生日：</span>
-                                <span className={cardText}>{formatDate(hamsterBirthday)}</span>
+                                <span className={cardText}>{formatDateTaipei(hamsterBirthday)}</span>
                                 {ageInDays !== null && (
                                     <span className={`${labelText} ml-auto font-medium`}>
                                         {getAgeText(ageInDays)}
@@ -218,7 +202,7 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                             <div className="flex items-center gap-2 text-sm">
                                 <Home size={16} className={`${labelText} opacity-70`} />
                                 <span className={`${cardText} opacity-70`}>到家：</span>
-                                <span className={cardText}>{formatDate(arrivalDate)}</span>
+                                <span className={cardText}>{formatDateTaipei(arrivalDate)}</span>
                                 {daysAtHome !== null && (
                                     <span className={`${labelText} ml-auto font-medium`}>
                                         {daysAtHome === 0 ? '今天剛到家！' : `已經 ${daysAtHome} 天了`}
@@ -284,15 +268,15 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                         <LineChart data={chartData}>
                             <XAxis
                                 dataKey="timestamp"
-                                tickFormatter={(timestamp) => new Date(timestamp).toLocaleDateString('zh-TW', {
+                                tickFormatter={(timestamp) => formatDateTaipei(timestamp, {
                                     timeZone: 'Asia/Taipei',
-                                    month: 'numeric',
+                                    month: 'short',
                                     day: 'numeric'
                                 })}
                                 tick={{ fontSize: 10 }}
                             />
                             <Tooltip
-                                labelFormatter={(timestamp) => new Date(timestamp).toLocaleDateString('zh-TW', {
+                                labelFormatter={(timestamp) => formatDateTaipei(timestamp, {
                                     timeZone: 'Asia/Taipei'
                                 })}
                                 formatter={(value, name) => {
@@ -417,7 +401,7 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                                                     <div className="font-semibold">{hamster.name}</div>
                                                     {hamster.birthday && (
                                                         <div className={`text-xs mt-0.5 ${isSelected ? 'opacity-80' : mutedText}`}>
-                                                            生日：{new Date(hamster.birthday).toLocaleDateString('zh-TW')}
+                                                            生日：{formatDateTaipei(hamster.birthday, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                                                         </div>
                                                     )}
                                                 </div>
@@ -544,7 +528,7 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                                     value={editFormData.hamsterBirthday}
                                     onChange={(e) => setEditFormData({ ...editFormData, hamsterBirthday: e.target.value })}
                                     className={`w-full p-3 border ${inputBorder} rounded-lg focus:ring-2 ${inputFocus}`}
-                                    max={new Date().toISOString().split('T')[0]}
+                                    max={getTaipeiDateString()}
                                 />
                             </div>
 
@@ -556,7 +540,7 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                                     value={editFormData.arrivalDate}
                                     onChange={(e) => setEditFormData({ ...editFormData, arrivalDate: e.target.value })}
                                     className={`w-full p-3 border ${inputBorder} rounded-lg focus:ring-2 ${inputFocus}`}
-                                    max={new Date().toISOString().split('T')[0]}
+                                    max={getTaipeiDateString()}
                                 />
                             </div>
 
@@ -583,7 +567,7 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                                         value={editFormData.lastBeddingChange}
                                         onChange={(e) => setEditFormData({ ...editFormData, lastBeddingChange: e.target.value })}
                                         className={`w-full p-3 border ${inputBorder} rounded-lg focus:ring-2 ${inputFocus}`}
-                                        max={new Date().toISOString().split('T')[0]}
+                                        max={getTaipeiDateString()}
                                     />
                                 </div>
                             )}

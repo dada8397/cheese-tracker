@@ -1,3 +1,5 @@
+import { getTaipeiTimestamp } from './dateUtils';
+
 const STORAGE_KEY = 'cheese_tracker_data';
 const SETTINGS_KEY = 'cheese_tracker_settings';
 const HAMSTERS_KEY = 'cheese_tracker_hamsters';
@@ -96,7 +98,7 @@ export const exportBackup = (filename = 'hamster_backup.json') => {
 
         const backup = {
             version: '3.0', // New format: data is inside each hamster
-            exportDate: new Date().toISOString(),
+            exportDate: getTaipeiTimestamp(),
             settings: settings ? JSON.parse(settings) : {},
             hamsters: hamsters ? JSON.parse(hamsters) : [],
             currentHamsterId: currentHamsterId || null

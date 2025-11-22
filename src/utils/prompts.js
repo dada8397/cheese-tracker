@@ -1,3 +1,5 @@
+import { formatDateTaipei, getTaipeiDate } from './dateUtils';
+
 export const generateSystemPrompt = (hamsterBackground = '') => {
     const defaultBackground = `
     - 他是「天然穀物派」，不吃壓縮飼料。
@@ -31,7 +33,7 @@ export const generateUserPrompt = (recentData) => {
     const history = recentData.slice(1, 4); // Last 3 days context
 
     return `
-目前日期: ${new Date().toLocaleDateString()}
+目前日期: ${formatDateTaipei(getTaipeiDate().toISOString(), { year: 'numeric', month: 'numeric', day: 'numeric' })}
 
 **今日數據**:
 - 體重: ${today.weight}g
@@ -44,7 +46,7 @@ export const generateUserPrompt = (recentData) => {
 - 筆記: ${today.notes}
 
 **近期歷史**:
-${history.map(h => `- ${new Date(h.timestamp).toLocaleDateString()}: 滾輪=${h.wheelTurns}, 食量=${h.foodIntake}g, 筆記=${h.notes}`).join('\n')}
+${history.map(h => `- ${formatDateTaipei(h.timestamp, { year: 'numeric', month: 'numeric', day: 'numeric' })}: 滾輪=${h.wheelTurns}, 食量=${h.foodIntake}g, 筆記=${h.notes}`).join('\n')}
 
 請分析這隻倉鼠目前的狀態，並告訴我接下來該怎麼做。
 `;

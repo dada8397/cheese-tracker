@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Heart, Calendar, Home, Layers, CheckCircle, Camera, Image, Upload, AlertTriangle, X, Plus } from 'lucide-react';
 import { importData, extractFormDataFromSettings } from '../utils/dataIO';
+import { formatDateTaipei, getTaipeiDateString } from '../utils/dateUtils';
 
 export default function Welcome({ onComplete, theme, onImportData, onImportBackup, onImportSettings, onImportBackupComplete, hamsters = [], onSelectHamster, currentHamsterId, isNewHamster = false, onCancel }) {
     const [mode, setMode] = useState(hamsters.length > 0 && !isNewHamster ? 'select' : 'new'); // 'select' or 'new'
@@ -232,7 +233,7 @@ export default function Welcome({ onComplete, theme, onImportData, onImportBacku
                                         <div className="font-semibold">{hamster.name}</div>
                                         {hamster.birthday && (
                                             <div className="text-sm opacity-80">
-                                                {new Date(hamster.birthday).toLocaleDateString('zh-TW')}
+                                                {formatDateTaipei(hamster.birthday, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                                             </div>
                                         )}
                                     </div>
@@ -321,7 +322,7 @@ export default function Welcome({ onComplete, theme, onImportData, onImportBacku
                                 value={formData.hamsterBirthday}
                                 onChange={(e) => updateFormData('hamsterBirthday', e.target.value)}
                                 className={`w-full p-3 border ${inputBorder} rounded-lg focus:ring-2 ${inputFocus} text-lg`}
-                                max={new Date().toISOString().split('T')[0]}
+                                max={getTaipeiDateString()}
                             />
                             <p className={`text-xs ${mutedText} mt-2`}>
                                 如果不確定確切日期，可以選擇大概的日期
@@ -406,7 +407,7 @@ export default function Welcome({ onComplete, theme, onImportData, onImportBacku
                                 value={formData.arrivalDate}
                                 onChange={(e) => updateFormData('arrivalDate', e.target.value)}
                                 className={`w-full p-3 border ${inputBorder} rounded-lg focus:ring-2 ${inputFocus} text-lg`}
-                                max={new Date().toISOString().split('T')[0]}
+                                max={getTaipeiDateString()}
                             />
                         </div>
                     </div>
@@ -472,7 +473,7 @@ export default function Welcome({ onComplete, theme, onImportData, onImportBacku
                                 value={formData.lastBeddingChange}
                                 onChange={(e) => updateFormData('lastBeddingChange', e.target.value)}
                                 className={`w-full p-3 border ${inputBorder} rounded-lg focus:ring-2 ${inputFocus} text-lg`}
-                                max={new Date().toISOString().split('T')[0]}
+                                max={getTaipeiDateString()}
                             />
                             <p className={`text-xs ${mutedText} mt-2`}>
                                 這有助於我們追蹤墊材更換的頻率
