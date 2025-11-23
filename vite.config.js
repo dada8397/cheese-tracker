@@ -8,4 +8,6 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // Fix for vercel dev HTML parsing issue
+  assetsInclude: ['**/*.html'],
 })
