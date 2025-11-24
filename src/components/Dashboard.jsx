@@ -178,7 +178,13 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                             </div>
                             {ageInDays !== null && (
                                 <p className={`text-sm ${cardText} opacity-80`}>
-                                    {ageInDays < 30 ? '還是個小寶寶呢！' : ageInDays < 180 ? '正在健康成長中' : '已經是個大孩子了'}
+                                    {ageInDays < 90
+                                        ? '還是個小寶寶呢！'
+                                        : ageInDays < 365
+                                            ? '正在健康成長中'
+                                            : ageInDays < 730
+                                                ? '已經是個大孩子了'
+                                                : '是個長壽寶寶呢！'}
                                 </p>
                             )}
                         </div>
