@@ -9,5 +9,5 @@ export default defineConfig({
     tailwindcss(),
   ],
   // Fix for vercel dev HTML parsing issue
-  assetsInclude: ['**/*.html'],
+  // assetsInclude: ['**/*.html'],
 })
