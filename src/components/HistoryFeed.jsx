@@ -19,7 +19,7 @@ const StatusBadge = ({ entry, theme }) => {
     return <span className={`text-xs px-2 py-1 rounded-full font-medium ${color}`}>{status}</span>;
 };
 
-export default function HistoryFeed({ data, theme, onSupplementData }) {
+export default function HistoryFeed({ data, theme, onSupplementData, onEditEntry }) {
     const t = theme || {};
     const cardBg = t.cardBg || 'bg-white';
     const cardBorder = t.cardBorder || 'border-pink-200';
@@ -52,7 +52,11 @@ export default function HistoryFeed({ data, theme, onSupplementData }) {
                 <p className={`${emptyStateText} text-sm text-center py-8`}>尚無紀錄</p>
             ) : (
                 data.map(entry => (
-                    <div key={entry.id} className={`${cardBg} ${cardText} p-4 rounded-xl shadow-sm border ${cardBorder} flex flex-col gap-2`}>
+                    <div 
+                        key={entry.id} 
+                        onClick={() => onEditEntry && onEditEntry(entry)}
+                        className={`${cardBg} ${cardText} p-4 rounded-xl shadow-sm border ${cardBorder} flex flex-col gap-2 cursor-pointer hover:shadow-md transition-shadow`}
+                    >
                         <div className="flex justify-between items-start">
                             <span className={`text-xs font-medium ${timestampText}`}>
                                 {new Date(entry.timestamp).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}

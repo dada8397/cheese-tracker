@@ -28,11 +28,14 @@ function App() {
     addHamster,
     updateHamster,
     setCurrentHamster,
-    deleteHamster
+    deleteHamster,
+    updateEntry,
+    deleteEntry
   } = useCheeseData();
   const [view, setView] = useState('dashboard'); // dashboard, entry, settings, hamster-selector
   const [showWelcome, setShowWelcome] = useState(false);
   const [isNewHamster, setIsNewHamster] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
 
   const theme = themes[settings.theme] || themes.cherry;
   
@@ -203,7 +206,14 @@ function App() {
                 <HistoryFeed 
                   data={data} 
                   theme={theme} 
-                  onSupplementData={() => setView('entry')}
+                  onSupplementData={() => {
+                    setEditingEntry(null);
+                    setView('entry');
+                  }}
+                  onEditEntry={(entry) => {
+                    setEditingEntry(entry);
+                    setView('entry');
+                  }}
                 />
               </>
             )}
@@ -211,11 +221,27 @@ function App() {
             {view === 'entry' && (
               <EntryForm
                 theme={theme}
+                editingEntry={editingEntry}
                 onSave={(entry) => {
-                  addEntry(entry);
+                  if (editingEntry) {
+                    // Update existing entry
+                    updateEntry(editingEntry.id, entry);
+                    setEditingEntry(null);
+                  } else {
+                    // Add new entry
+                    addEntry(entry);
+                  }
                   setView('dashboard');
                 }}
-                onCancel={() => setView('dashboard')}
+                onCancel={() => {
+                  setEditingEntry(null);
+                  setView('dashboard');
+                }}
+                onDelete={(entryId) => {
+                  deleteEntry(entryId);
+                  setEditingEntry(null);
+                  setView('dashboard');
+                }}
               />
             )}
 

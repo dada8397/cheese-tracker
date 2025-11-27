@@ -393,6 +393,39 @@ export const useCheeseData = () => {
         return true;
     };
 
+    const updateEntry = (entryId, entryData) => {
+        if (!currentHamsterId) return false;
+        
+        const updated = hamsters.map(h => 
+            h.id === currentHamsterId 
+                ? { 
+                    ...h, 
+                    data: h.data.map(d => 
+                        d.id === entryId 
+                            ? { ...d, ...entryData, timestamp: entryData.timestamp || d.timestamp }
+                            : d
+                    )
+                }
+                : h
+        );
+        setHamsters(updated);
+        localStorage.setItem(HAMSTERS_KEY, JSON.stringify(updated));
+        return true;
+    };
+
+    const deleteEntry = (entryId) => {
+        if (!currentHamsterId) return false;
+        
+        const updated = hamsters.map(h => 
+            h.id === currentHamsterId 
+                ? { ...h, data: h.data.filter(d => d.id !== entryId) }
+                : h
+        );
+        setHamsters(updated);
+        localStorage.setItem(HAMSTERS_KEY, JSON.stringify(updated));
+        return true;
+    };
+
     // Backward compatibility: settings object for components that still use it
     const settings = currentHamster ? {
         ...globalSettings,
@@ -463,6 +496,8 @@ export const useCheeseData = () => {
         clearAllData, 
         importData,
         importBackup, 
-        updateTodayEntry 
+        updateTodayEntry,
+        updateEntry,
+        deleteEntry
     };
 };

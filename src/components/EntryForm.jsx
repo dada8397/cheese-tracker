@@ -1,26 +1,52 @@
 import { useState, useEffect } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save, X, Trash2 } from 'lucide-react';
 import { getTaipeiDateString, getTaipeiTimestamp } from '../utils/dateUtils';
 
-export default function EntryForm({ onSave, onCancel, theme, selectedDate }) {
-    const [formData, setFormData] = useState({
-        date: selectedDate || getTaipeiDateString(),
-        weight: '',
-        foodIntake: '',
-        wheelTurns: '',
-        poop: 'Normal',
-        activity: 'Normal',
-        interaction: 'None',
-        environment: 'Normal',
-        notes: ''
-    });
-
-    // Update date when selectedDate prop changes
-    useEffect(() => {
-        if (selectedDate) {
-            setFormData(prev => ({ ...prev, date: selectedDate }));
+export default function EntryForm({ onSave, onCancel, theme, selectedDate, editingEntry, onDelete }) {
+    // Initialize form data from editing entry or defaults
+    const getInitialFormData = () => {
+        if (editingEntry) {
+            // Extract date from timestamp
+            const entryDate = new Date(editingEntry.timestamp);
+            const dateStr = entryDate.toLocaleDateString('en-CA', {
+                timeZone: 'Asia/Taipei',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            
+            return {
+                date: dateStr,
+                weight: editingEntry.weight || '',
+                foodIntake: editingEntry.foodIntake || '',
+                wheelTurns: editingEntry.wheelTurns || '',
+                poop: editingEntry.poop || 'Normal',
+                activity: editingEntry.activity || 'Normal',
+                interaction: editingEntry.interaction || 'None',
+                environment: editingEntry.environment || 'Normal',
+                notes: editingEntry.notes || ''
+            };
         }
-    }, [selectedDate]);
+        return {
+            date: selectedDate || getTaipeiDateString(),
+            weight: '',
+            foodIntake: '',
+            wheelTurns: '',
+            poop: 'Normal',
+            activity: 'Normal',
+            interaction: 'None',
+            environment: 'Normal',
+            notes: ''
+        };
+    };
+
+    const [formData, setFormData] = useState(getInitialFormData());
+
+    // Update form data when editingEntry or selectedDate changes
+    useEffect(() => {
+        setFormData(getInitialFormData());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editingEntry, selectedDate]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -70,7 +96,7 @@ export default function EntryForm({ onSave, onCancel, theme, selectedDate }) {
     return (
         <form onSubmit={handleSubmit} className={`space-y-6 ${cardBg} ${cardText} p-6 rounded-xl shadow-sm border ${cardBorder}`}>
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">新增紀錄</h3>
+                <h3 className="text-lg font-semibold">{editingEntry ? '編輯紀錄' : '新增紀錄'}</h3>
                 <button type="button" onClick={onCancel} className={iconMuted}>
                     <X size={24} />
                 </button>
@@ -199,13 +225,29 @@ export default function EntryForm({ onSave, onCancel, theme, selectedDate }) {
                 />
             </div>
 
-            <button
-                type="submit"
-                className={`w-full flex items-center justify-center gap-2 ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-3 rounded-lg transition-colors`}
-            >
-                <Save size={20} />
-                Save Entry
-            </button>
+            <div className="flex gap-3">
+                {editingEntry && onDelete && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (window.confirm('確定要刪除這筆紀錄嗎？')) {
+                                onDelete(editingEntry.id);
+                            }
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 ${buttonText} font-semibold py-3 rounded-lg transition-colors`}
+                    >
+                        <Trash2 size={20} />
+                        刪除
+                    </button>
+                )}
+                <button
+                    type="submit"
+                    className={`${editingEntry && onDelete ? 'flex-1' : 'w-full'} flex items-center justify-center gap-2 ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-3 rounded-lg transition-colors`}
+                >
+                    <Save size={20} />
+                    {editingEntry ? '儲存' : 'Save Entry'}
+                </button>
+            </div>
         </form>
     );
 }
