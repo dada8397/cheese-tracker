@@ -166,7 +166,7 @@ export const useCheeseData = () => {
         
         const newEntry = {
             id: Date.now().toString(),
-            timestamp: getTaipeiTimestamp(),
+            timestamp: entry.timestamp || getTaipeiTimestamp(),
             ...entry
         };
         

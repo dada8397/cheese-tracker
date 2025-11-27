@@ -1,4 +1,4 @@
-import { Activity, Utensils, Gauge } from 'lucide-react';
+import { Activity, Utensils, Gauge, Plus } from 'lucide-react';
 
 const StatusBadge = ({ entry, theme }) => {
     const status = entry.activity === 'Low' || entry.foodIntake < 1 ? '關注' :
@@ -19,7 +19,7 @@ const StatusBadge = ({ entry, theme }) => {
     return <span className={`text-xs px-2 py-1 rounded-full font-medium ${color}`}>{status}</span>;
 };
 
-export default function HistoryFeed({ data, theme }) {
+export default function HistoryFeed({ data, theme, onSupplementData }) {
     const t = theme || {};
     const cardBg = t.cardBg || 'bg-white';
     const cardBorder = t.cardBorder || 'border-pink-200';
@@ -36,7 +36,18 @@ export default function HistoryFeed({ data, theme }) {
     return (
 
         <div className="space-y-3">
-            <h2 className={`text-sm font-bold ${subHeaderText} uppercase tracking-wide`}>歷史紀錄</h2>
+            <div className="flex items-center justify-between">
+                <h2 className={`text-sm font-bold ${subHeaderText} uppercase tracking-wide`}>歷史紀錄</h2>
+                {onSupplementData && (
+                    <button
+                        onClick={onSupplementData}
+                        className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${t.buttonBg || 'bg-pink-500'} ${t.buttonText || 'text-white'} ${t.buttonHover || 'hover:bg-pink-600'}`}
+                    >
+                        <Plus size={14} />
+                        補充數據
+                    </button>
+                )}
+            </div>
             {data.length === 0 ? (
                 <p className={`${emptyStateText} text-sm text-center py-8`}>尚無紀錄</p>
             ) : (

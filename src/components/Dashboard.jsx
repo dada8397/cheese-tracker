@@ -297,15 +297,6 @@ export default function Dashboard({ data, onAddClick, theme, settings, onUpdateS
                 </div>
             </div>
 
-            {/* Quick Add Button */}
-            <button
-                onClick={onAddClick}
-                className={`w-full ${buttonBg} ${buttonHover} ${buttonText} font-semibold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2`}
-            >
-                <PlusCircle size={20} />
-                記錄今日數據
-            </button>
-
             {/* Photo Modal */}
             {showPhotoModal && hamsterPhoto && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setShowPhotoModal(false)}>

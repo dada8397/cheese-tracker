@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { getTaipeiDateString } from '../utils/dateUtils';
 
-export default function QuickUpdate({ onUpdate, theme }) {
+export default function QuickUpdate({ onUpdate, theme, date, latestEntryDateString }) {
     const {
         cardBg = 'bg-white',
         cardBorder = 'border-pink-200',
@@ -20,6 +21,25 @@ export default function QuickUpdate({ onUpdate, theme }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        // Check if latest entry date is different from today
+        if (latestEntryDateString) {
+            const todayDateString = getTaipeiDateString();
+            if (latestEntryDateString !== todayDateString) {
+                // Parse date for display
+                const entryDate = new Date(latestEntryDateString + 'T12:00:00');
+                const displayDate = entryDate.toLocaleDateString('zh-TW', {
+                    month: 'numeric',
+                    day: 'numeric',
+                    timeZone: 'Asia/Taipei'
+                });
+                
+                if (!window.confirm(`確定要更新（${displayDate}）的紀錄嗎？`)) {
+                    return;
+                }
+            }
+        }
+        
         const updates = {};
         if (foodAdd) updates.foodIntake = parseFloat(foodAdd);
         if (wheelAdd) updates.wheelTurns = parseInt(wheelAdd);
@@ -36,7 +56,7 @@ export default function QuickUpdate({ onUpdate, theme }) {
     return (
         <form onSubmit={handleSubmit} className={`${cardBg} ${cardText} p-4 rounded-xl border ${cardBorder}`}>
             <h3 className={`text-sm font-semibold ${subHeaderText} mb-3 flex items-center gap-2`}>
-                <Plus size={16} /> 快速更新今日
+                <Plus size={16} /> 快速更新（{date || '今日'}）
             </h3>
 
             <div className="grid grid-cols-2 gap-3 mb-3">

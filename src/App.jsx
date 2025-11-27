@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon, PlusCircle } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import EntryForm from './components/EntryForm';
 import HistoryFeed from './components/HistoryFeed';
@@ -9,6 +9,7 @@ import QuickUpdate from './components/QuickUpdate';
 import Welcome from './components/Welcome';
 import { useCheeseData } from './hooks/useCheeseData';
 import { themes } from './utils/themes';
+import { formatDateTaipei, getTaipeiDateString, getTaipeiDate } from './utils/dateUtils';
 
 function App() {
   const { 
@@ -40,6 +41,76 @@ function App() {
   // 1. No hamsters exist (first time use)
   // OR if showWelcome is true (adding new hamster)
   const needsOnboarding = hamsters.length === 0 || showWelcome;
+
+  // Get today's date string for display
+  const todayDateString = getTaipeiDateString();
+  // Format date without year (MM/DD)
+  const todayDate = getTaipeiDate();
+  const todayDisplayDate = todayDate.toLocaleDateString('zh-TW', { 
+    month: 'numeric', 
+    day: 'numeric',
+    timeZone: 'Asia/Taipei'
+  });
+
+  // Get latest entry date for QuickUpdate display
+  const getLatestEntryDate = () => {
+    if (!data || data.length === 0) return null;
+    const latestEntry = data[0];
+    if (!latestEntry || !latestEntry.timestamp) return null;
+    
+    const timestampDate = new Date(latestEntry.timestamp);
+    return timestampDate.toLocaleDateString('zh-TW', { 
+      month: 'numeric', 
+      day: 'numeric',
+      timeZone: 'Asia/Taipei'
+    });
+  };
+  
+  // Get latest entry date string (YYYY-MM-DD) for comparison
+  const getLatestEntryDateString = () => {
+    if (!data || data.length === 0) return null;
+    const latestEntry = data[0];
+    if (!latestEntry || !latestEntry.timestamp) return null;
+    
+    const timestampDate = new Date(latestEntry.timestamp);
+    return timestampDate.toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+  
+  const latestEntryDate = getLatestEntryDate();
+  const latestEntryDateString = getLatestEntryDateString();
+
+  // Check if today already has an entry
+  const hasTodayEntry = () => {
+    if (!data || data.length === 0) return false;
+    const latestEntry = data[0];
+    if (!latestEntry || !latestEntry.timestamp) return false;
+    
+    // Convert timestamp to Taipei timezone date string
+    const timestampDate = new Date(latestEntry.timestamp);
+    const taipeiDateStr = timestampDate.toLocaleDateString('en-CA', { 
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    
+    // Compare dates (YYYY-MM-DD format)
+    return taipeiDateStr === todayDateString;
+  };
+
+  const handleNewDayClick = () => {
+    // Block if today already has an entry
+    if (hasTodayEntry()) {
+      alert('今天已經有記錄了，無法新增新一天的數據。');
+      return;
+    }
+    setView('entry');
+  };
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.baseText} font-sans pb-20`}>
@@ -115,9 +186,25 @@ function App() {
                   }}
                   onEditHamster={updateHamster}
                 />
-                <QuickUpdate theme={theme} onUpdate={updateTodayEntry} />
+                <QuickUpdate 
+                  theme={theme} 
+                  onUpdate={updateTodayEntry} 
+                  date={latestEntryDate || '今日'}
+                  latestEntryDateString={latestEntryDateString}
+                />
+                <button
+                  onClick={handleNewDayClick}
+                  className={`w-full ${theme.buttonBg} ${theme.buttonHover} ${theme.buttonText} font-semibold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2`}
+                >
+                  <PlusCircle size={20} />
+                  紀錄新一天數據（{todayDisplayDate}）
+                </button>
                 <AIAnalysis data={data} apiKey={settings.apiKey} theme={theme} hamsterBackground={settings.hamsterBackground} />
-                <HistoryFeed data={data} theme={theme} />
+                <HistoryFeed 
+                  data={data} 
+                  theme={theme} 
+                  onSupplementData={() => setView('entry')}
+                />
               </>
             )}
 

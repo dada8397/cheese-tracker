@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, X } from 'lucide-react';
+import { getTaipeiDateString, getTaipeiTimestamp } from '../utils/dateUtils';
 
-export default function EntryForm({ onSave, onCancel, theme }) {
+export default function EntryForm({ onSave, onCancel, theme, selectedDate }) {
     const [formData, setFormData] = useState({
+        date: selectedDate || getTaipeiDateString(),
         weight: '',
         foodIntake: '',
         wheelTurns: '',
@@ -13,6 +15,13 @@ export default function EntryForm({ onSave, onCancel, theme }) {
         notes: ''
     });
 
+    // Update date when selectedDate prop changes
+    useEffect(() => {
+        if (selectedDate) {
+            setFormData(prev => ({ ...prev, date: selectedDate }));
+        }
+    }, [selectedDate]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -20,9 +29,24 @@ export default function EntryForm({ onSave, onCancel, theme }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Convert numeric fields
+        // Convert numeric fields and prepare timestamp
+        const { date, ...entryData } = formData;
+        
+        // Create timestamp from selected date
+        let timestamp;
+        if (date) {
+            // Parse date string (YYYY-MM-DD) and create date at noon in Taipei timezone
+            const [year, month, day] = date.split('-').map(Number);
+            // Create date object representing noon in Taipei timezone
+            const taipeiDate = new Date(Date.UTC(year, month - 1, day, 4, 0, 0)); // UTC+8 means 12:00 Taipei = 04:00 UTC
+            timestamp = taipeiDate.toISOString();
+        } else {
+            timestamp = getTaipeiTimestamp();
+        }
+        
         const entry = {
-            ...formData,
+            ...entryData,
+            timestamp,
             weight: formData.weight ? parseFloat(formData.weight) : null,
             foodIntake: formData.foodIntake ? parseFloat(formData.foodIntake) : null,
             wheelTurns: formData.wheelTurns ? parseInt(formData.wheelTurns) : null,
@@ -50,6 +74,19 @@ export default function EntryForm({ onSave, onCancel, theme }) {
                 <button type="button" onClick={onCancel} className={iconMuted}>
                     <X size={24} />
                 </button>
+            </div>
+
+            {/* Date Selection */}
+            <div>
+                <label className={`block text-sm font-medium ${labelText} mb-1`}>日期</label>
+                <input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    max={getTaipeiDateString()}
+                    className={`w-full p-2 border ${inputBorder} rounded-lg focus:ring-2 ${inputFocus}`}
+                />
             </div>
 
             {/* Quantitative Data */}
